@@ -1,0 +1,20 @@
+package main
+
+import (
+	"polygon"
+)
+
+type Env struct {
+	space polygon.Space
+	spaceConf polygon.Space
+	spaceAcc polygon.Space
+	robSpace  polygon.Space
+	spaceInit  polygon.Space
+	allEdge  []polygon.Edge
+	allVert  []polygon.Vertex
+	robVert  []polygon.Vertex
+	robEdge  []polygon.Edge{}
+	polRobot  polygon.Polygon
+	polRobotVect  []polygon.Vertex
+	showBorder  true
+}

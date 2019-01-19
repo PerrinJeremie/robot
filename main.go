@@ -16,6 +16,8 @@ var (
 	INSTRENDERER   *sdl.Renderer
 	PLRENDERER     *sdl.Renderer
 	FONT           *ttf.Font
+	SCREEN_WIDTH   int32
+	SCREEN_HEIGHT  int32
 	err            error
 	WHITE          sdl.Color
 	spaceInit      polygon.Space
@@ -38,11 +40,15 @@ var (
 	vertexEnd      polygon.Vertex
 	frame_polygon1 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, 0, 0}, 1: polygon.Vertex{1, -5, 1400}, 2: polygon.Vertex{2, 2005, 1400}, 3: polygon.Vertex{3, 2000, 0}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
 	frame_polygon2 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, -10, -10}, 1: polygon.Vertex{1, -15, 1410}, 2: polygon.Vertex{2, 2015, 1410}, 3: polygon.Vertex{3, 2010, -10}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
+
+	INSTRUCTION_MENU = [...]string{"\n Menu \n\nR - Set Robot \n\nO - Set Obstacles\n\nE - Erase\n\nQ - Quit \n",
+		"\n Menu \n\nN - Decompose Space\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit",
+		"\n Menu \n\nN - Compute Minkowski Sums\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit",
+		"\n Menu \n\nN - Get Border of Accessible Space \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit",
+		"\n Menu \n\nV - Visibility Graph and Shortest Path\n\nC - Cellular Decomposition and Path\n\nW - Watch\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit"}
 )
 
 const (
-	INSTRUCTION_MENU = "\n Menu \n\nR - Set Robot \nO - Set Obstacles\nM - Draw Minkowski\nC - Clear Obstacles\nQ - Quit \n"
-
 	INSTRUCTION_ROBOT     = "\n Robot \n\nDraw the robot\n\nD - Finish and draw last edge\nQ - Quit"
 	INSTRUCTION_PLACE     = "\n Robot \n\nPlace start\nPlace end\nQ - Quit"
 	INSTRUCTION_OBSTACLES = "\n Obstacles \n\nDraw the obstacle\nD - Finish obstacle\nM - Goto Menu\nQ - Quit\n"
@@ -59,8 +65,15 @@ func Init() {
 		panic(err)
 	}
 
+	DM, err := sdl.GetCurrentDisplayMode(0)
+	if err != nil {
+		panic(err)
+	}
+	SCREEN_WIDTH = DM.W
+	SCREEN_HEIGHT = DM.H
+
 	INSTWINDOW, err = sdl.CreateWindow("Instructions", 0,
-		0, 400, 800, sdl.WINDOW_SHOWN)
+		0, 5*SCREEN_WIDTH/26, 3*SCREEN_HEIGHT/5, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
 	}
@@ -70,8 +83,8 @@ func Init() {
 		panic(err)
 	}
 
-	PLWINDOW, err = sdl.CreateWindow("Playground", 450,
-		0, 2000, 1400, sdl.WINDOW_SHOWN)
+	PLWINDOW, err = sdl.CreateWindow("Playground", 5*SCREEN_WIDTH/26,
+		0, 21*SCREEN_WIDTH/26, SCREEN_HEIGHT, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
 	}
@@ -81,12 +94,12 @@ func Init() {
 		panic(err)
 	}
 
-	PLRENDERER, err = sdl.CreateRenderer(PLWINDOW, 0, 0)
+	PLRENDERER, err = sdl.CreateRenderer(PLWINDOW, -1, sdl.RENDERER_ACCELERATED)
 	if err != nil {
 		panic(err)
 	}
 
-	FONT, err = ttf.OpenFont("courier.ttf", 30)
+	FONT, err = ttf.OpenFont("dep/courier.ttf", 30)
 	if err != nil {
 		panic(err)
 		fmt.Printf("Error loading font\n")
@@ -115,7 +128,7 @@ func Init() {
 	vertexBegin = polygon.Vertex{}
 	vertexEnd = polygon.Vertex{}
 
-	PrintInstruction(INSTRUCTION_MENU)
+	PrintInstruction(INSTRUCTION_MENU[0])
 
 }
 
@@ -141,9 +154,30 @@ func DrawPolygon(pol *polygon.Polygon, c1, c2, c3 uint8, width int32) {
 	}
 }
 
+func DrawPolygon2(r *sdl.Renderer, pol *polygon.Polygon, c1, c2, c3 uint8, width int32) {
+	for k, v := range pol.Edges {
+		drawn := gfx.ThickLineRGBA(r, int32(pol.Vertices[k].X), int32(pol.Vertices[k].Y),
+			int32(pol.Vertices[v[0]].X), int32(pol.Vertices[v[0]].Y), width, c1, c2, c3, 0xff)
+		if !drawn {
+			fmt.Printf("Not Drawn")
+		}
+		drawn = gfx.ThickLineRGBA(r, int32(pol.Vertices[k].X), int32(pol.Vertices[k].Y),
+			int32(pol.Vertices[v[1]].X), int32(pol.Vertices[v[1]].Y), width, c1, c2, c3, 0xff)
+		if !drawn {
+			fmt.Printf("Not Drawn")
+		}
+	}
+}
+
 func DrawSpace(space *polygon.Space, c1, c2, c3 uint8, width int32) {
 	for _, p := range space.Polygons {
 		DrawPolygon(&p, c1, c2, c3, width)
+	}
+}
+
+func DrawSpace2(r *sdl.Renderer, space *polygon.Space, c1, c2, c3 uint8, width int32) {
+	for _, p := range space.Polygons {
+		DrawPolygon2(r, &p, c1, c2, c3, width)
 	}
 }
 
@@ -153,6 +187,20 @@ func DrawListVectFromVert(listOfVects *[]polygon.Vertex, x, y float64, c1, c2, c
 	for _, v := range *listOfVects {
 		//PLRENDERER.DrawLine(int32(xtmp), int32(ytmp), int32(xtmp+v.X), int32(ytmp+v.Y))
 		drawn := gfx.ThickLineRGBA(PLRENDERER, int32(xtmp), int32(ytmp), int32(xtmp+v.X), int32(ytmp+v.Y), width, c1, c2, c3, 0xff)
+		if !drawn {
+			fmt.Printf("Not Drawn")
+		}
+		xtmp = xtmp + v.X
+		ytmp = ytmp + v.Y
+	}
+}
+
+func DrawListVectFromVert2(r *sdl.Renderer, listOfVects *[]polygon.Vertex, x, y float64, c1, c2, c3 uint8, width int32) {
+	xtmp := x
+	ytmp := y
+	for _, v := range *listOfVects {
+		//PLRENDERER.DrawLine(int32(xtmp), int32(ytmp), int32(xtmp+v.X), int32(ytmp+v.Y))
+		drawn := gfx.ThickLineRGBA(r, int32(xtmp), int32(ytmp), int32(xtmp+v.X), int32(ytmp+v.Y), width, c1, c2, c3, 0xff)
 		if !drawn {
 			fmt.Printf("Not Drawn")
 		}
@@ -193,7 +241,7 @@ func GetRobot() {
 				if ev.WindowID == MAIN_WINDOW_ID {
 					if i > 0 {
 						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0xff)
-						PLRENDERER.FillRect(nil)
+						PLRENDERER.Clear()
 						_ = gfx.ThickLineRGBA(PLRENDERER, int32(listOfClicks[i-1].X),
 							int32(listOfClicks[i-1].Y), ev.X, ev.Y, 5, 0, 0xff, 0, 0xff)
 
@@ -263,7 +311,7 @@ func GetRobot() {
 				DrawSpace(&space, 0x66, 0x66, 0x66, 5)
 				DrawListVert(&listOfClicks, 0, 0xff, 0, 5)
 				PLRENDERER.Present()
-				estimate = time.Now().UnixNano() - tmp
+				estimate = time.Now().UnixNano() - tmp + 5000000
 				last = time.Now().UnixNano()
 			}
 		}
@@ -337,8 +385,16 @@ func RobotEdge(place int) {
 func SetBeginEnd() {
 	running := true
 	place := 0
-	last := time.Now().UnixNano()
-	estimate := time.Now().UnixNano() - last
+	//last := time.Now().UnixNano()
+	//estimate := time.Now().UnixNano() - last
+	S, _ := PLWINDOW.GetSurface()
+	NR, _ := sdl.CreateSoftwareRenderer(S)
+	NR.SetDrawColor(0xff, 0xff, 0xff, 0)
+	NR.Clear()
+	DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
+	NR.Present()
+	PLWINDOW.UpdateSurface()
+	T, _ := PLRENDERER.CreateTextureFromSurface(S)
 	PrintInstruction(INSTRUCTION_PLACE)
 	for running && quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -366,25 +422,25 @@ func SetBeginEnd() {
 				break
 			case *sdl.MouseMotionEvent:
 				if ev.WindowID == MAIN_WINDOW_ID {
-					if time.Now().UnixNano()-last > estimate {
-						tmp := time.Now().UnixNano()
-						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
-						PLRENDERER.FillRect(nil)
-						DrawSpace(&space, 0x66, 0x66, 0x66, 5)
-						if place == 0 {
-							DrawListVectFromVert(&polRobotVect, float64(ev.X), float64(ev.Y), 0, 0xff, 0, 5)
-						} else if place == 1 {
-							DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
-							DrawListVectFromVert(&polRobotVect, float64(ev.X), float64(ev.Y), 0, 0, 0xff, 5)
-						}
-						PLRENDERER.Present()
-						estimate = time.Now().UnixNano() - tmp
-						last = time.Now().UnixNano()
+					PLRENDERER.Copy(T, nil, nil)
+					if place == 0 {
+						DrawListVectFromVert(&polRobotVect, float64(ev.X), float64(ev.Y), 0, 0xff, 0, 5)
+					} else if place == 1 {
+						DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
+						DrawListVectFromVert(&polRobotVect, float64(ev.X), float64(ev.Y), 0, 0, 0xff, 5)
 					}
+					PLRENDERER.Present()
 				}
 				break
 			}
 		}
+		/*if time.Now().UnixNano()-last > estimate+5000000 {
+			tmp := time.Now().UnixNano()
+			DrawSpace(&space, 0x66, 0x66, 0x66, 5)
+			PLRENDERER.Present()
+			estimate = time.Now().UnixNano() - tmp
+			last = time.Now().UnixNano()
+		}*/
 	}
 }
 
@@ -401,35 +457,264 @@ func PrintInstruction(Inst string) {
 	INSTRENDERER.Present()
 }
 
-func LetsWatch(lpath []polygon.Vertex) {
+var (
+	showBorder     = false
+	showCells      = false
+	showPath       = false
+	showVisibility = false
+	listOfEdges    = &([]polygon.Edge{})
+	robDec         = &([]*polygon.Polygon{})
+	accPol         = &([]polygon.Polygon{})
+	cells          = []*polygon.Polygon{}
+	g              = polygon.NewGraph()
+	vg             = polygon.VGraph{}.NewGraph()
+	lpath          = []polygon.Vertex{}
+	turns          = 0
+)
+
+func MenuItemErase() {
+	space = polygon.NewEmptySpace()
+	spaceConf = polygon.NewEmptySpace()
+	spaceAcc = polygon.NewEmptySpace()
+	robSpace = polygon.NewEmptySpace()
+	spaceInit = polygon.NewEmptySpace()
+	allEdge = []polygon.Edge{}
+	allVert = []polygon.Vertex{}
+	robVert = []polygon.Vertex{}
+	robEdge = []polygon.Edge{}
+	polRobot = polygon.Polygon{}
+	polRobotVect = []polygon.Vertex{}
+	showBorder = false
+	showCells = false
+	showPath = false
+	showVisibility = false
+	mink = false
+	setr = false
+	seto = false
+	listOfEdges = &([]polygon.Edge{})
+	robDec = &([]*polygon.Polygon{})
+	accPol = &([]polygon.Polygon{})
+	cells = []*polygon.Polygon{}
+	g = polygon.NewGraph()
+	vg = polygon.VGraph{}.NewGraph()
+	lpath = []polygon.Vertex{}
+	turns = 0
+}
+
+func MenuItemWatch() {
 	splittedPath := polygon.SplitPathIntoPixels(lpath, 10)
+	S, _ := PLWINDOW.GetSurface()
+	NR, _ := sdl.CreateSoftwareRenderer(S)
+	NR.SetDrawColor(0xff, 0xff, 0xff, 0)
+	NR.Clear()
+	DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
+	NR.Present()
+	PLWINDOW.UpdateSurface()
+	T, _ := PLRENDERER.CreateTextureFromSurface(S)
+	//T, _ := PLRENDERER.CreateTextureFromSurface(S)
+	sleep := time.Duration(20000000)
 	for _, v := range splittedPath {
-		PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
-		PLRENDERER.FillRect(nil)
-		DrawSpace(&spaceInit, 0x66, 0x66, 0x66, 5)
+		PLRENDERER.Copy(T, nil, nil)
 		DrawListVectFromVert(&polRobotVect, v.X, v.Y, 0x66, 0x66, 0x66, 5)
 		PLRENDERER.Present()
-		//time.Sleep(40000 * time.Nanosecond)
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch ev := event.(type) {
+			case *sdl.KeyboardEvent:
+				if ev.Type == sdl.KEYDOWN {
+					switch ev.Keysym.Sym {
+					case sdl.GetKeyFromName("F"):
+						sleep = 8000000
+						break
+					case sdl.GetKeyFromName("S"):
+						sleep = 20000000
+						break
+					case sdl.GetKeyFromName("Q"):
+						quit = false
+						break
+					}
+				}
+				break
+			}
+		}
+		time.Sleep(sleep * time.Nanosecond)
 	}
 }
 
+func MenuItemNext() {
+	switch turns {
+	case 0:
+		break
+	case 1:
+		spaceInit = space
+		polygon.AddPolygonToSpace(&frame_polygon1, &space)
+		polygon.AddPolygonToSpace(&frame_polygon2, &space)
+		SetLines()
+		turns++
+		break
+	case 2:
+		spaceConf = polygon.NewEmptySpace()
+		robDec = DecomposeRobot()
+		listOfPol := polygon.MinkowskiGeneral(vertexBegin, robDec, &space)
+		for _, pol := range *listOfPol {
+			polygon.AddPolygonToSpace(pol, &spaceConf)
+		}
+		mink = true
+		turns++
+		break
+	case 3:
+		listOfEdges = polygon.FasterBorderEdges(&spaceConf)
+		fmt.Printf("\n%v\n", *listOfEdges)
+		accPol = polygon.FromEdgesToPoly(listOfEdges)
+		fmt.Printf("\n%v\n", *accPol)
+		showBorder = true
+		for _, pol := range *accPol {
+			polygon.AddPolygonToSpace(&pol, &spaceAcc)
+		}
+		polygon.DeleteFirstPol(&spaceAcc)
+		turns++
+		break
+	}
+}
+
+func MenuItemSetRobot() {
+	space = spaceInit
+	spaceConf = polygon.NewEmptySpace()
+	spaceAcc = polygon.NewEmptySpace()
+	robSpace = polygon.NewEmptySpace()
+	showBorder = false
+	showVisibility = false
+	showCells = false
+	showPath = false
+	mink = false
+	polRobot = polygon.Polygon{}
+	polRobotVect = []polygon.Vertex{}
+	robVert = []polygon.Vertex{}
+	robEdge = []polygon.Edge{}
+	PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+	PLRENDERER.FillRect(nil)
+	DrawSpace(&space, 0x66, 0x66, 0x66, 5)
+	PLRENDERER.Present()
+	GetRobot()
+	PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+	PLRENDERER.FillRect(nil)
+	DrawSpace(&space, 0x66, 0x66, 0x66, 5)
+	DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
+	PLRENDERER.Present()
+	SetBeginEnd()
+	setr = true
+	if seto {
+		turns = 1
+	}
+	spaceConf = polygon.NewEmptySpace()
+}
+
+func MenuItemSetObstacles() {
+	space = spaceInit
+	spaceConf = polygon.NewEmptySpace()
+	spaceAcc = polygon.NewEmptySpace()
+	showBorder = false
+	showVisibility = false
+	showCells = false
+	showPath = false
+	mink = false
+	PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+	PLRENDERER.FillRect(nil)
+	DrawSpace(&space, 0x66, 0x66, 0x66, 5)
+	PLRENDERER.Present()
+	SetObstacles()
+	seto = true
+	if setr {
+		turns = 1
+	}
+	spaceInit = space
+}
+
+func MenuItemCellDecomposition() {
+	if turns == 4 {
+		showVisibility = false
+		cells, g = polygon.DecomposeAndBuildGraph(&spaceAcc)
+		lpath, showPath = g.FindPath(vertexBegin, vertexEnd)
+		showCells = true
+		showPath = true
+	}
+}
+
+func MenuItemSetPosition() {
+	DrawSpace(&spaceInit, 0x66, 0x66, 0x66, 5)
+	DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
+	PLRENDERER.Present()
+	SetBeginEnd()
+}
+
+func MenuItemVisibilityGraph() {
+	if turns == 4 {
+		showCells = false
+		vg = polygon.VisibilityGraphFrom(&spaceAcc, &spaceConf)
+		fmt.Printf("\n%v\n", vertexBegin)
+		vg = vg.AddBeginEnd(&vertexBegin, &vertexEnd, &spaceAcc, &spaceConf)
+		fmt.Printf("\n%v\n", vertexBegin)
+		lpath = vg.SPDijkstra(vertexBegin.Id, vertexEnd.Id)
+		fmt.Printf("\nYES\n")
+		showVisibility = true
+		showPath = true
+	}
+}
+
+func MenuDraw() {
+	PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+	PLRENDERER.FillRect(nil)
+	DrawSpace(&space, 0x66, 0x66, 0x66, 5)
+	if setr {
+		DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
+		DrawListVectFromVert(&polRobotVect, vertexEnd.X, vertexEnd.Y, 0, 0, 0xff, 5)
+	}
+	if mink {
+		DrawSpace(&spaceConf, 0xff, 0, 0, 1)
+		/*
+			for _, polptr := range *robDec {
+				DrawPolygon(polptr, 0xff, 0, 0, 5)
+			}*/
+	}
+	if showBorder {
+		for _, v := range *listOfEdges {
+			bx, by := int32(v.Begin().X), int32(v.Begin().Y)
+			ex, ey := int32(v.End().X), int32(v.End().Y)
+			_ = gfx.ThickLineRGBA(PLRENDERER, bx, by, ex, ey, 5, 0, 0xff, 0, 0xff)
+
+		}
+		for _, pol := range *accPol {
+			DrawPolygon(&pol, 0, 0, 0xff, 5)
+		}
+	}
+	if showCells {
+		for _, pol := range cells {
+			DrawPolygon(pol, 0xff, 0, 0xff, 5)
+		}
+	}
+	if showPath {
+		for i := 0; i < len(lpath)-1; i++ {
+			bx, by := int32(lpath[i].X), int32(lpath[i].Y)
+			ex, ey := int32(lpath[i+1].X), int32(lpath[i+1].Y)
+			_ = gfx.ThickLineRGBA(PLRENDERER, bx, by, ex, ey, 5, 0xff, 0, 0, 0xff)
+		}
+	}
+	if showVisibility {
+		for i, v1 := range vg.Vertices {
+			for _, v2 := range vg.AdjList[i] {
+				v2x, v2y := int32(vg.Vertices[v2].X), int32(vg.Vertices[v2].Y)
+				_ = gfx.ThickLineRGBA(PLRENDERER, int32(v1.X), int32(v1.Y), v2x, v2y, 3, 0x11, 0xff, 0x11, 0xff)
+			}
+		}
+	}
+
+	PLRENDERER.Present()
+}
+
 func Menu() {
-	PrintInstruction(INSTRUCTION_MENU)
-	showBorder := false
-	showCells := false
-	showPath := false
-	showVisibility := false
-	listOfEdges := &([]polygon.Edge{})
-	robDec := &([]*polygon.Polygon{})
-	accPol := &([]polygon.Polygon{})
-	cells := []*polygon.Polygon{}
-	g := polygon.NewGraph()
-	vg := polygon.VGraph{}.NewGraph()
-	lpath := []polygon.Vertex{}
-	turns := 0
+	PrintInstruction(INSTRUCTION_MENU[turns])
 	for quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-
+			PrintInstruction(INSTRUCTION_MENU[turns])
 			switch ev := event.(type) {
 			case *sdl.QuitEvent:
 				quit = false
@@ -437,210 +722,41 @@ func Menu() {
 			case *sdl.KeyboardEvent:
 				if ev.Type == sdl.KEYDOWN {
 					switch ev.Keysym.Sym {
-					case sdl.GetKeyFromName("P"):
-
-						break
 					case sdl.GetKeyFromName("Q"):
 						quit = false
 						break
 					case sdl.GetKeyFromName("W"):
-						LetsWatch(lpath)
+						MenuItemWatch()
 						break
 					case sdl.GetKeyFromName("E"):
-						space = polygon.NewEmptySpace()
-						spaceConf = polygon.NewEmptySpace()
-						spaceAcc = polygon.NewEmptySpace()
-						robSpace = polygon.NewEmptySpace()
-						spaceInit = polygon.NewEmptySpace()
-						allEdge = []polygon.Edge{}
-						allVert = []polygon.Vertex{}
-						robVert = []polygon.Vertex{}
-						robEdge = []polygon.Edge{}
-						polRobot = polygon.Polygon{}
-						polRobotVect = []polygon.Vertex{}
-						showBorder = false
-						showCells = false
-						showPath = false
-						showVisibility = false
-						mink = false
-						setr = false
-						seto = false
-						listOfEdges = &([]polygon.Edge{})
-						robDec = &([]*polygon.Polygon{})
-						accPol = &([]polygon.Polygon{})
-						cells = []*polygon.Polygon{}
-						g = polygon.NewGraph()
-						vg = polygon.VGraph{}.NewGraph()
-						lpath = []polygon.Vertex{}
-						turns = 0
+						MenuItemErase()
 						break
 					case sdl.GetKeyFromName("N"):
-						switch turns {
-						case 0:
-							break
-						case 1:
-							spaceInit = space
-							polygon.AddPolygonToSpace(&frame_polygon1, &space)
-							polygon.AddPolygonToSpace(&frame_polygon2, &space)
-							SetLines()
-							turns++
-							break
-						case 2:
-							if !mink {
-								spaceConf = polygon.NewEmptySpace()
-								robDec = DecomposeRobot()
-								listOfPol := polygon.MinkowskiGeneral(vertexBegin, robDec, &space)
-								for _, pol := range *listOfPol {
-									polygon.AddPolygonToSpace(pol, &spaceConf)
-								}
-								mink = true
-							} else {
-								mink = false
-							}
-							turns++
-							break
-						case 3:
-							listOfEdges = polygon.FasterBorderEdges(&spaceConf)
-							fmt.Printf("\n%v\n", *listOfEdges)
-							accPol = polygon.FromEdgesToPoly(listOfEdges)
-							fmt.Printf("\n%v\n", *accPol)
-							showBorder = true
-							for _, pol := range *accPol {
-								polygon.AddPolygonToSpace(&pol, &spaceAcc)
-							}
-							polygon.DeleteFirstPol(&spaceAcc)
-							turns++
-							break
-
-						}
+						MenuItemNext()
+						break
 					case sdl.GetKeyFromName("R"):
-						space = spaceInit
-						spaceConf = polygon.NewEmptySpace()
-						spaceAcc = polygon.NewEmptySpace()
-						robSpace = polygon.NewEmptySpace()
-						showBorder = false
-						showVisibility = false
-						showCells = false
-						showPath = false
-						mink = false
-						polRobot = polygon.Polygon{}
-						polRobotVect = []polygon.Vertex{}
-						robVert = []polygon.Vertex{}
-						robEdge = []polygon.Edge{}
-						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
-						PLRENDERER.FillRect(nil)
-						DrawSpace(&space, 0x66, 0x66, 0x66, 5)
-						PLRENDERER.Present()
-						GetRobot()
-						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
-						PLRENDERER.FillRect(nil)
-						DrawSpace(&space, 0x66, 0x66, 0x66, 5)
-						DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
-						PLRENDERER.Present()
-						SetBeginEnd()
-						setr = true
-						if seto {
-							turns = 1
-						}
-						spaceConf = polygon.NewEmptySpace()
+						MenuItemSetRobot()
 						break
 					case sdl.GetKeyFromName("O"):
-						space = spaceInit
-						spaceConf = polygon.NewEmptySpace()
-						spaceAcc = polygon.NewEmptySpace()
-						showBorder = false
-						showVisibility = false
-						showCells = false
-						showPath = false
-						mink = false
-						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
-						PLRENDERER.FillRect(nil)
-						DrawSpace(&space, 0x66, 0x66, 0x66, 5)
-						PLRENDERER.Present()
-						SetObstacles()
-						seto = true
-						if setr {
-							turns = 1
-						}
-						spaceInit = space
+						MenuItemSetObstacles()
 						break
 					case sdl.GetKeyFromName("S"):
-						DrawSpace(&spaceInit, 0x66, 0x66, 0x66, 5)
-						DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
-						PLRENDERER.Present()
-						SetBeginEnd()
+						MenuItemSetPosition()
 						break
 					case sdl.GetKeyFromName("C"):
-						if turns == 4 {
-							showVisibility = false
-							cells, g = polygon.DecomposeAndBuildGraph(&spaceAcc)
-							lpath, showPath = g.FindPath(vertexBegin, vertexEnd)
-							showCells = true
-							showPath = true
-						}
+						MenuItemCellDecomposition()
 						break
 					case sdl.GetKeyFromName("V"):
-						if turns == 4 {
-							vg = polygon.VisibilityGraphFrom(&spaceAcc, &spaceConf)
-							fmt.Printf("\n%v\n", vertexBegin)
-							vg = vg.AddBeginEnd(&vertexBegin, &vertexEnd, &spaceAcc, &spaceConf)
-							fmt.Printf("\n%v\n", vertexBegin)
-							lpath = vg.SPDijkstra(vertexBegin.Id, vertexEnd.Id)
-							fmt.Printf("\nYES\n")
-							showVisibility = true
-							showPath = true
-						}
+						MenuItemVisibilityGraph()
 						break
+					case sdl.GetKeyFromName("M"):
+						SaveCurrentEnv("egs/test")
+					case sdl.GetKeyFromName("L"):
+						LoadEnv("egs/test")
+						fmt.Printf("\n%v\n", space.PolygonOfId[1])
 					}
-					PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
-					PLRENDERER.FillRect(nil)
-					DrawSpace(&space, 0x66, 0x66, 0x66, 5)
-					if setr {
-						DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
-						DrawListVectFromVert(&polRobotVect, vertexEnd.X, vertexEnd.Y, 0, 0, 0xff, 5)
-					}
-					if mink {
-						DrawSpace(&spaceConf, 0xff, 0, 0, 1)
-						for _, polptr := range *robDec {
-							DrawPolygon(polptr, 0xff, 0, 0, 5)
-						}
-					}
-					if showBorder {
-						for _, v := range *listOfEdges {
-							bx, by := int32(v.Begin().X), int32(v.Begin().Y)
-							ex, ey := int32(v.End().X), int32(v.End().Y)
-							_ = gfx.ThickLineRGBA(PLRENDERER, bx, by, ex, ey, 5, 0, 0xff, 0, 0xff)
-
-						}
-						for _, pol := range *accPol {
-							DrawPolygon(&pol, 0, 0, 0xff, 5)
-						}
-					}
-					if showCells {
-						for _, pol := range cells {
-							DrawPolygon(pol, 0xff, 0, 0xff, 5)
-						}
-					}
-					if showPath {
-						for i := 0; i < len(lpath)-1; i++ {
-							bx, by := int32(lpath[i].X), int32(lpath[i].Y)
-							ex, ey := int32(lpath[i+1].X), int32(lpath[i+1].Y)
-							_ = gfx.ThickLineRGBA(PLRENDERER, bx, by, ex, ey, 5, 0xff, 0, 0, 0xff)
-						}
-					}
-					if showVisibility {
-						for i, v1 := range vg.Vertices {
-							for _, v2 := range vg.AdjList[i] {
-								v2x, v2y := int32(vg.Vertices[v2].X), int32(vg.Vertices[v2].Y)
-								_ = gfx.ThickLineRGBA(PLRENDERER, int32(v1.X), int32(v1.Y), v2x, v2y, 3, 0x11, 0xff, 0x11, 0xff)
-							}
-						}
-					}
-
-					PLRENDERER.Present()
-
+					MenuDraw()
 				}
-				PrintInstruction(INSTRUCTION_MENU)
 				break
 			}
 
@@ -750,7 +866,7 @@ func SetObstacles() {
 			DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
 			DrawListVectFromVert(&polRobotVect, vertexEnd.X, vertexEnd.Y, 0, 0, 0xff, 5)
 			PLRENDERER.Present()
-			estimate = time.Now().UnixNano() - tmp
+			estimate = time.Now().UnixNano() - tmp + 5000000
 			last = time.Now().UnixNano()
 		}
 	}
