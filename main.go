@@ -41,17 +41,17 @@ var (
 	frame_polygon1 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, 0, 0}, 1: polygon.Vertex{1, -5, 1400}, 2: polygon.Vertex{2, 2005, 1400}, 3: polygon.Vertex{3, 2000, 0}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
 	frame_polygon2 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, -10, -10}, 1: polygon.Vertex{1, -15, 1410}, 2: polygon.Vertex{2, 2015, 1410}, 3: polygon.Vertex{3, 2010, -10}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
 
-	INSTRUCTION_MENU = [...]string{"\n Menu \n\nR - Set Robot \n\nO - Set Obstacles\n\nE - Erase\n\nQ - Quit \n",
-		"\n Menu \n\nN - Decompose Space\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit",
-		"\n Menu \n\nN - Compute Minkowski Sums\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit",
-		"\n Menu \n\nN - Get Border of Accessible Space \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit",
-		"\n Menu \n\nV - Visibility Graph and Shortest Path\n\nC - Cellular Decomposition and Path\n\nW - Watch\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nQ - Quit"}
+	INSTRUCTION_MENU = [...]string{"\n Menu \n\nR - Set Robot \n\nO - Set Obstacles\n\nE - Erase",
+		"\n Menu \n\nN - Decompose Space\n\nA - Compute Path \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase",
+		"\n Menu \n\nN - Compute Minkowski Sums\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase",
+		"\n Menu \n\nN - Get Border of Accessible Space \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase",
+		"\n Menu \n\nV - Visibility Graph and Shortest Path\n\nC - Cellular Decomposition and Path\n\nW - Watch\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase"}
 )
 
 const (
-	INSTRUCTION_ROBOT     = "\n Robot \n\nDraw the robot\n\nD - Finish and draw last edge\nQ - Quit"
-	INSTRUCTION_PLACE     = "\n Robot \n\nPlace start\nPlace end\nQ - Quit"
-	INSTRUCTION_OBSTACLES = "\n Obstacles \n\nDraw the obstacle\nD - Finish obstacle\nM - Goto Menu\nQ - Quit\n"
+	INSTRUCTION_ROBOT     = "\n Robot \n\nDraw the robot\n\nD - Finish and draw last edge"
+	INSTRUCTION_PLACE     = "\n Robot \n\nPlace start\nPlace end"
+	INSTRUCTION_OBSTACLES = "\n Obstacles \n\nDraw the obstacle\nD - Finish obstacle\nM - Goto Menu"
 	FRAME_RATE            = 24
 )
 
@@ -83,8 +83,13 @@ func Init() {
 		panic(err)
 	}
 
+	PLWIDTHI := 21 * SCREEN_WIDTH / 26
+	PLWIDTH := float64(PLWIDTHI)
+	PLHEIGHTI := SCREEN_HEIGHT
+	PLHEIGHT := float64(PLHEIGHTI)
+
 	PLWINDOW, err = sdl.CreateWindow("Playground", 5*SCREEN_WIDTH/26,
-		0, 21*SCREEN_WIDTH/26, SCREEN_HEIGHT, sdl.WINDOW_SHOWN)
+		0, PLWIDTHI, PLHEIGHTI, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
 	}
@@ -104,6 +109,9 @@ func Init() {
 		panic(err)
 		fmt.Printf("Error loading font\n")
 	}
+
+	frame_polygon1 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, 0, 0}, 1: polygon.Vertex{1, -5, PLHEIGHT}, 2: polygon.Vertex{2, PLWIDTH + 5, PLHEIGHT}, 3: polygon.Vertex{3, PLWIDTH, 0}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
+	frame_polygon2 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, -10, -10}, 1: polygon.Vertex{1, -15, PLHEIGHT + 10}, 2: polygon.Vertex{2, PLWIDTH + 15, PLHEIGHT + 10}, 3: polygon.Vertex{3, PLWIDTH + 10, -10}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
 
 	WHITE = sdl.Color{255, 255, 255, 0}
 
@@ -234,8 +242,10 @@ func GetRobot() {
 	for running && quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch ev := event.(type) {
-			case *sdl.QuitEvent:
-				quit = false
+			case *sdl.WindowEvent:
+				if ev.Event == sdl.WINDOWEVENT_CLOSE {
+					quit = false
+				}
 				break
 			case *sdl.MouseMotionEvent:
 				if ev.WindowID == MAIN_WINDOW_ID {
@@ -399,8 +409,10 @@ func SetBeginEnd() {
 	for running && quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch ev := event.(type) {
-			case *sdl.QuitEvent:
-				quit = false
+			case *sdl.WindowEvent:
+				if ev.Event == sdl.WINDOWEVENT_CLOSE {
+					quit = false
+				}
 				break
 			case *sdl.MouseButtonEvent:
 				if ev.State == sdl.PRESSED && ev.WindowID == MAIN_WINDOW_ID {
@@ -519,6 +531,11 @@ func MenuItemWatch() {
 		PLRENDERER.Present()
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch ev := event.(type) {
+			case *sdl.WindowEvent:
+				if ev.Event == sdl.WINDOWEVENT_CLOSE {
+					quit = false
+				}
+				break
 			case *sdl.KeyboardEvent:
 				if ev.Type == sdl.KEYDOWN {
 					switch ev.Keysym.Sym {
@@ -528,13 +545,14 @@ func MenuItemWatch() {
 					case sdl.GetKeyFromName("S"):
 						sleep = 20000000
 						break
-					case sdl.GetKeyFromName("Q"):
-						quit = false
-						break
+
 					}
 				}
 				break
 			}
+		}
+		if !quit {
+			break
 		}
 		time.Sleep(sleep * time.Nanosecond)
 	}
@@ -716,15 +734,14 @@ func Menu() {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			PrintInstruction(INSTRUCTION_MENU[turns])
 			switch ev := event.(type) {
-			case *sdl.QuitEvent:
-				quit = false
+			case *sdl.WindowEvent:
+				if ev.Event == sdl.WINDOWEVENT_CLOSE {
+					quit = false
+				}
 				break
 			case *sdl.KeyboardEvent:
 				if ev.Type == sdl.KEYDOWN {
 					switch ev.Keysym.Sym {
-					case sdl.GetKeyFromName("Q"):
-						quit = false
-						break
 					case sdl.GetKeyFromName("W"):
 						MenuItemWatch()
 						break
@@ -838,8 +855,10 @@ func SetObstacles() {
 	for running && quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch ev := event.(type) {
-			case *sdl.QuitEvent:
-				quit = false
+			case *sdl.WindowEvent:
+				if ev.Event == sdl.WINDOWEVENT_CLOSE {
+					quit = false
+				}
 				break
 			case *sdl.MouseButtonEvent:
 				handleClickObstacles(ev, &listOfClicks, &i)
