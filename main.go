@@ -84,12 +84,15 @@ func Init() {
 	}
 
 	PLWIDTHI := 21 * SCREEN_WIDTH / 26
-	PLWIDTH := float64(PLWIDTHI)
-	PLHEIGHTI := SCREEN_HEIGHT
-	PLHEIGHT := float64(PLHEIGHTI)
+	PLHEIGHTI := 13 * SCREEN_HEIGHT / 15
 
 	PLWINDOW, err = sdl.CreateWindow("Playground", 5*SCREEN_WIDTH/26,
 		0, PLWIDTHI, PLHEIGHTI, sdl.WINDOW_SHOWN)
+	PLHEIGHT := float64(PLHEIGHTI)
+	PLWIDTH := float64(PLWIDTHI)
+	fmt.Printf("\nHeight : %v\n", PLHEIGHT)
+	fmt.Printf("\nWidth : %v\n", PLWIDTH)
+
 	if err != nil {
 		panic(err)
 	}
@@ -558,38 +561,50 @@ func MenuItemWatch() {
 	}
 }
 
+func DecomposeObst() {
+	spaceInit = space
+	polygon.AddPolygonToSpace(&frame_polygon1, &space)
+	polygon.AddPolygonToSpace(&frame_polygon2, &space)
+	SetLines()
+	turns++
+}
+
+func BuildMink() {
+	spaceConf = polygon.NewEmptySpace()
+	robDec = DecomposeRobot()
+	listOfPol := polygon.MinkowskiGeneral(vertexBegin, robDec, &space)
+	for _, pol := range *listOfPol {
+		polygon.AddPolygonToSpace(pol, &spaceConf)
+	}
+	mink = true
+	turns++
+}
+
+func BuildBorders() {
+	listOfEdges = polygon.FasterBorderEdges(&spaceConf)
+	fmt.Printf("\n%v\n", *listOfEdges)
+	accPol = polygon.FromEdgesToPoly(listOfEdges)
+	fmt.Printf("\n%v\n", *accPol)
+	showBorder = true
+	for _, pol := range *accPol {
+		polygon.AddPolygonToSpace(&pol, &spaceAcc)
+	}
+	polygon.DeleteFirstPol(&spaceAcc)
+	turns++
+}
+
 func MenuItemNext() {
 	switch turns {
 	case 0:
 		break
 	case 1:
-		spaceInit = space
-		polygon.AddPolygonToSpace(&frame_polygon1, &space)
-		polygon.AddPolygonToSpace(&frame_polygon2, &space)
-		SetLines()
-		turns++
+		DecomposeObst()
 		break
 	case 2:
-		spaceConf = polygon.NewEmptySpace()
-		robDec = DecomposeRobot()
-		listOfPol := polygon.MinkowskiGeneral(vertexBegin, robDec, &space)
-		for _, pol := range *listOfPol {
-			polygon.AddPolygonToSpace(pol, &spaceConf)
-		}
-		mink = true
-		turns++
+		BuildMink()
 		break
 	case 3:
-		listOfEdges = polygon.FasterBorderEdges(&spaceConf)
-		fmt.Printf("\n%v\n", *listOfEdges)
-		accPol = polygon.FromEdgesToPoly(listOfEdges)
-		fmt.Printf("\n%v\n", *accPol)
-		showBorder = true
-		for _, pol := range *accPol {
-			polygon.AddPolygonToSpace(&pol, &spaceAcc)
-		}
-		polygon.DeleteFirstPol(&spaceAcc)
-		turns++
+		BuildBorders()
 		break
 	}
 }
@@ -732,7 +747,6 @@ func Menu() {
 	PrintInstruction(INSTRUCTION_MENU[turns])
 	for quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
-			PrintInstruction(INSTRUCTION_MENU[turns])
 			switch ev := event.(type) {
 			case *sdl.WindowEvent:
 				if ev.Event == sdl.WINDOWEVENT_CLOSE {
@@ -744,6 +758,15 @@ func Menu() {
 					switch ev.Keysym.Sym {
 					case sdl.GetKeyFromName("W"):
 						MenuItemWatch()
+						break
+					case sdl.GetKeyFromName("A"):
+						if turns == 1 {
+							DecomposeObst()
+							BuildMink()
+							BuildBorders()
+							MenuItemVisibilityGraph()
+							MenuItemWatch()
+						}
 						break
 					case sdl.GetKeyFromName("E"):
 						MenuItemErase()
@@ -767,12 +790,13 @@ func Menu() {
 						MenuItemVisibilityGraph()
 						break
 					case sdl.GetKeyFromName("M"):
-						SaveCurrentEnv("egs/test")
+						SaveAndLoad()
 					case sdl.GetKeyFromName("L"):
 						LoadEnv("egs/test")
 						fmt.Printf("\n%v\n", space.PolygonOfId[1])
 					}
 					MenuDraw()
+					PrintInstruction(INSTRUCTION_MENU[turns])
 				}
 				break
 			}
