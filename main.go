@@ -41,17 +41,18 @@ var (
 	frame_polygon1 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, 0, 0}, 1: polygon.Vertex{1, -5, 1400}, 2: polygon.Vertex{2, 2005, 1400}, 3: polygon.Vertex{3, 2000, 0}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
 	frame_polygon2 = polygon.Polygon{map[uint32]polygon.Vertex{0: polygon.Vertex{0, -10, -10}, 1: polygon.Vertex{1, -15, 1410}, 2: polygon.Vertex{2, 2015, 1410}, 3: polygon.Vertex{3, 2010, -10}}, map[uint32]([]uint32){0: []uint32{1, 3}, 1: []uint32{0, 2}, 2: []uint32{1, 3}, 3: []uint32{2, 0}}}
 
-	INSTRUCTION_MENU = [...]string{"\n Menu \n\nR - Set Robot \n\nO - Set Obstacles\n\nE - Erase",
-		"\n Menu \n\nN - Decompose Space\n\nA - Compute Path \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase",
-		"\n Menu \n\nN - Compute Minkowski Sums\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase",
-		"\n Menu \n\nN - Get Border of Accessible Space \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase",
-		"\n Menu \n\nV - Visibility Graph and Shortest Path\n\nC - Cellular Decomposition and Path\n\nW - Watch\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase"}
+	INSTRUCTION_MENU = [...]string{"\n Menu \n\nR - Set Robot \n\nO - Set Obstacles\n\nE - Erase\n\nM - Load/Save",
+		"\n Menu \n\nN - Decompose Space\n\nA - Compute Path \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nM - Load/Save",
+		"\n Menu \n\nN - Compute Minkowski Sums\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nM - Load/Save",
+		"\n Menu \n\nN - Get Border of Accessible Space \n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nM - Load/Save",
+		"\n Menu \n\nV - Visibility Graph and Shortest Path\n\nC - Cellular Decomposition and Path\n\nW - Watch\n\nR - Set Robot \n\nO - Set Obstacles\n\nS - Change Robot Position\n\nE - Erase\n\nM - Load/Save"}
 )
 
 const (
 	INSTRUCTION_ROBOT     = "\n Robot \n\nDraw the robot\n\nD - Finish and draw last edge"
 	INSTRUCTION_PLACE     = "\n Robot \n\nPlace start\nPlace end"
-	INSTRUCTION_OBSTACLES = "\n Obstacles \n\nDraw the obstacle\nD - Finish obstacle\nM - Goto Menu"
+	INSTRUCTION_OBSTACLES = "\n Obstacles \n\nDraw the obstacle\nD - Finish obstacle\nQ - Goto Menu"
+	INSTRUCTION_WATCH     = "\n Watching \n\nF - Fast\n\nS - Slow"
 	FRAME_RATE            = 24
 )
 
@@ -527,6 +528,7 @@ func MenuItemWatch() {
 	PLWINDOW.UpdateSurface()
 	T, _ := PLRENDERER.CreateTextureFromSurface(S)
 	//T, _ := PLRENDERER.CreateTextureFromSurface(S)
+	PrintInstruction(INSTRUCTION_WATCH)
 	sleep := time.Duration(20000000)
 	for _, v := range splittedPath {
 		PLRENDERER.Copy(T, nil, nil)
@@ -791,9 +793,6 @@ func Menu() {
 						break
 					case sdl.GetKeyFromName("M"):
 						SaveAndLoad()
-					case sdl.GetKeyFromName("L"):
-						LoadEnv("egs/test")
-						fmt.Printf("\n%v\n", space.PolygonOfId[1])
 					}
 					MenuDraw()
 					PrintInstruction(INSTRUCTION_MENU[turns])
@@ -837,7 +836,7 @@ func handleClickObstacles(ev *sdl.MouseButtonEvent, listOfClicks *[]polygon.Vert
 	}
 }
 
-func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, i *int, runningptr *bool, running *bool) {
+func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, i *int, running *bool) {
 	if ev.Type == sdl.KEYDOWN {
 		switch ev.Keysym.Sym {
 		case sdl.GetKeyFromName("D"):
@@ -859,11 +858,9 @@ func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, 
 				allEdge = append(allEdge, e)
 			}
 			break
-		case sdl.GetKeyFromName("M"):
-			*running = false
-			break
 		case sdl.GetKeyFromName("Q"):
-			*runningptr = false
+			allEdge = allEdge[:(len(allEdge) - *i + 1)]
+			*running = false
 			break
 		}
 	}
@@ -888,7 +885,7 @@ func SetObstacles() {
 				handleClickObstacles(ev, &listOfClicks, &i)
 				break
 			case *sdl.KeyboardEvent:
-				handleKeysObstacles(ev, &listOfClicks, &i, &quit, &running)
+				handleKeysObstacles(ev, &listOfClicks, &i, &running)
 				break
 			case *sdl.MouseMotionEvent:
 				if ev.WindowID == MAIN_WINDOW_ID {
