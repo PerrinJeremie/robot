@@ -859,7 +859,9 @@ func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, 
 			}
 			break
 		case sdl.GetKeyFromName("Q"):
-			allEdge = allEdge[:(len(allEdge) - *i + 1)]
+			if *i != 0 {
+				allEdge = allEdge[:(len(allEdge) - *i + 1)]
+			}
 			*running = false
 			break
 		}
