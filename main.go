@@ -53,6 +53,7 @@ const (
 	INSTRUCTION_PLACE     = "\n Robot \n\nPlace start\nPlace end"
 	INSTRUCTION_OBSTACLES = "\n Obstacles \n\nDraw the obstacle\nD - Finish obstacle\nQ - Goto Menu"
 	INSTRUCTION_WATCH     = "\n Watching \n\nF - Fast\n\nS - Slow"
+	INSTRUCTION_COMPUTING = "\n Computing \n\nPlease Wait"
 	FRAME_RATE            = 24
 )
 
@@ -401,13 +402,21 @@ func SetBeginEnd() {
 	place := 0
 	//last := time.Now().UnixNano()
 	//estimate := time.Now().UnixNano() - last
-	S, _ := PLWINDOW.GetSurface()
+	/*S, _ := PLWINDOW.GetSurface()
 	NR, _ := sdl.CreateSoftwareRenderer(S)
 	NR.SetDrawColor(0xff, 0xff, 0xff, 0)
 	NR.Clear()
 	DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
 	NR.Present()
-	PLWINDOW.UpdateSurface()
+	PLWINDOW.UpdateSurface()*/
+	w, h, _ := PLRENDERER.GetOutputSize()
+	fmt.Printf("w : %v h : %v", w, h)
+	S, _ := sdl.CreateRGBSurface(0, w, h, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff)
+	NR, _ := sdl.CreateSoftwareRenderer(S)
+	NR.SetDrawColor(0xff, 0xff, 0xff, 0)
+	NR.FillRect(nil)
+	DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
+	NR.Present()
 	T, _ := PLRENDERER.CreateTextureFromSurface(S)
 	PrintInstruction(INSTRUCTION_PLACE)
 	for running && quit {
@@ -438,6 +447,8 @@ func SetBeginEnd() {
 				break
 			case *sdl.MouseMotionEvent:
 				if ev.WindowID == MAIN_WINDOW_ID {
+					PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+					PLRENDERER.FillRect(nil)
 					PLRENDERER.Copy(T, nil, nil)
 					if place == 0 {
 						DrawListVectFromVert(&polRobotVect, float64(ev.X), float64(ev.Y), 0, 0xff, 0, 5)
@@ -519,18 +530,30 @@ func MenuItemErase() {
 
 func MenuItemWatch() {
 	splittedPath := polygon.SplitPathIntoPixels(lpath, 10)
-	S, _ := PLWINDOW.GetSurface()
+	w, h, _ := PLRENDERER.GetOutputSize()
+	fmt.Printf("w : %v h : %v", w, h)
+	S, _ := sdl.CreateRGBSurface(0, w, h, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff)
 	NR, _ := sdl.CreateSoftwareRenderer(S)
 	NR.SetDrawColor(0xff, 0xff, 0xff, 0)
-	NR.Clear()
+	NR.FillRect(nil)
 	DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
 	NR.Present()
-	PLWINDOW.UpdateSurface()
 	T, _ := PLRENDERER.CreateTextureFromSurface(S)
+	/*
+		S, _ := PLWINDOW.GetSurface()
+		NR, _ := sdl.CreateSoftwareRenderer(S)
+		NR.SetDrawColor(0xff, 0xff, 0xff, 0)
+		NR.Clear()
+		DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
+		NR.Present()
+		PLWINDOW.UpdateSurface()*/
+	//T, _ := PLRENDERER.CreateTextureFromSurface(S)
 	//T, _ := PLRENDERER.CreateTextureFromSurface(S)
 	PrintInstruction(INSTRUCTION_WATCH)
 	sleep := time.Duration(20000000)
 	for _, v := range splittedPath {
+		PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+		PLRENDERER.Clear()
 		PLRENDERER.Copy(T, nil, nil)
 		DrawListVectFromVert(&polRobotVect, v.X, v.Y, 0x66, 0x66, 0x66, 5)
 		PLRENDERER.Present()
@@ -665,6 +688,15 @@ func MenuItemSetObstacles() {
 }
 
 func MenuItemCellDecomposition() {
+	defer func() {
+		if r := recover(); r != nil {
+			var ok bool
+			err, ok = r.(error)
+			if !ok {
+				err = fmt.Errorf("pkg: %v", r)
+			}
+		}
+	}()
 	if turns == 4 {
 		showVisibility = false
 		cells, g = polygon.DecomposeAndBuildGraph(&spaceAcc)
@@ -757,6 +789,7 @@ func Menu() {
 				break
 			case *sdl.KeyboardEvent:
 				if ev.Type == sdl.KEYDOWN {
+					PrintInstruction(INSTRUCTION_COMPUTING)
 					switch ev.Keysym.Sym {
 					case sdl.GetKeyFromName("W"):
 						MenuItemWatch()
@@ -862,6 +895,7 @@ func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, 
 			if *i != 0 {
 				allEdge = allEdge[:(len(allEdge) - *i + 1)]
 			}
+			allVert = allVert[:(len(allVert) - *i)]
 			*running = false
 			break
 		}
