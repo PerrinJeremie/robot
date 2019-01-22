@@ -240,9 +240,18 @@ func GetRobot() {
 	listOfClicks := []polygon.Vertex{}
 	robEdge = []polygon.Edge{}
 	robVert = []polygon.Vertex{}
-	last := time.Now().UnixNano()
-	estimate := time.Now().UnixNano() - last
+	//last := time.Now().UnixNano()
+	//estimate := time.Now().UnixNano() - last
 	i := 0
+	w, h, _ := PLRENDERER.GetOutputSize()
+	fmt.Printf("w : %v h : %v", w, h)
+	S, _ := sdl.CreateRGBSurface(0, w, h, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff)
+	NR, _ := sdl.CreateSoftwareRenderer(S)
+	NR.SetDrawColor(0xff, 0xff, 0xff, 0)
+	NR.FillRect(nil)
+	DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
+	NR.Present()
+	T, _ := PLRENDERER.CreateTextureFromSurface(S)
 	PrintInstruction(INSTRUCTION_ROBOT)
 	for running && quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -257,8 +266,10 @@ func GetRobot() {
 					if i > 0 {
 						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0xff)
 						PLRENDERER.Clear()
+						PLRENDERER.Copy(T, nil, nil)
 						_ = gfx.ThickLineRGBA(PLRENDERER, int32(listOfClicks[i-1].X),
 							int32(listOfClicks[i-1].Y), ev.X, ev.Y, 5, 0, 0xff, 0, 0xff)
+						PLRENDERER.Present()
 
 					}
 					vertexBegin = polygon.Vertex{0, float64(ev.X), float64(ev.Y)}
@@ -273,8 +284,16 @@ func GetRobot() {
 							eclick := polygon.Edge{listOfClicks[i-1], vclick}
 							if !eclick.IntersectsOne(&robEdge) {
 								listOfClicks = append(listOfClicks, vclick)
-								drawn := gfx.ThickLineRGBA(PLRENDERER, int32(listOfClicks[i-1].X),
+								drawn := gfx.ThickLineRGBA(NR, int32(listOfClicks[i-1].X),
 									int32(listOfClicks[i-1].Y), ev.X, ev.Y, 5, 0, 0xff, 0, 0xff)
+								NR.Present()
+								T, _ = PLRENDERER.CreateTextureFromSurface(S)
+								PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0xff)
+								PLRENDERER.Clear()
+								PLRENDERER.Copy(T, nil, nil)
+								_ = gfx.ThickLineRGBA(PLRENDERER, int32(listOfClicks[i-1].X),
+									int32(listOfClicks[i-1].Y), ev.X, ev.Y, 5, 0, 0xff, 0, 0xff)
+								PLRENDERER.Present()
 								if !drawn {
 									fmt.Printf("Not Drawn")
 								}
@@ -321,14 +340,14 @@ func GetRobot() {
 					}
 				}
 			}
-			if time.Now().UnixNano()-last > estimate && running {
+			/*if time.Now().UnixNano()-last > estimate && running {
 				tmp := time.Now().UnixNano()
 				DrawSpace(&space, 0x66, 0x66, 0x66, 5)
 				DrawListVert(&listOfClicks, 0, 0xff, 0, 5)
-				PLRENDERER.Present()
+
 				estimate = time.Now().UnixNano() - tmp + 5000000
 				last = time.Now().UnixNano()
-			}
+			}*/
 		}
 
 	}
@@ -837,7 +856,7 @@ func Menu() {
 	}
 }
 
-func handleClickObstacles(ev *sdl.MouseButtonEvent, listOfClicks *[]polygon.Vertex, i *int) {
+func handleClickObstacles(ev *sdl.MouseButtonEvent, listOfClicks *[]polygon.Vertex, i *int, NR *sdl.Renderer, T *sdl.Texture, S *sdl.Surface) {
 	fmt.Printf("\n%v\n", *i)
 	if ev.State == sdl.PRESSED && ev.WindowID == MAIN_WINDOW_ID {
 		vclick := polygon.Vertex{uint32(*i), float64(ev.X), float64(ev.Y)}
@@ -851,10 +870,16 @@ func handleClickObstacles(ev *sdl.MouseButtonEvent, listOfClicks *[]polygon.Vert
 					*listOfClicks = append(*listOfClicks, vclick)
 					allVert = append(allVert, vclick)
 					allEdge = append(allEdge, eclick)
-					drawn := gfx.ThickLineRGBA(PLRENDERER,
+					drawn := gfx.ThickLineRGBA(NR,
 						int32((*listOfClicks)[*i-1].X),
 						int32((*listOfClicks)[*i-1].Y),
 						ev.X, ev.Y, 5, 0x66, 0x66, 0x66, 0xff)
+					NR.Present()
+					T, _ = PLRENDERER.CreateTextureFromSurface(S)
+					PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+					PLRENDERER.Clear()
+					PLRENDERER.Copy(T, nil, nil)
+					PLRENDERER.Present()
 					if !drawn {
 						fmt.Printf("Not Drawn")
 					}
@@ -869,7 +894,7 @@ func handleClickObstacles(ev *sdl.MouseButtonEvent, listOfClicks *[]polygon.Vert
 	}
 }
 
-func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, i *int, running *bool) {
+func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, i *int, running *bool, NR *sdl.Renderer, T *sdl.Texture, S *sdl.Surface) {
 	if ev.Type == sdl.KEYDOWN {
 		switch ev.Keysym.Sym {
 		case sdl.GetKeyFromName("D"):
@@ -881,11 +906,14 @@ func handleKeysObstacles(ev *sdl.KeyboardEvent, listOfClicks *[]polygon.Vertex, 
 			if !e.IntersectsOne(&l) {
 				polygon.AddListToSpaceAsPoly(listOfClicks,
 					&space)
-				PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
-				PLRENDERER.FillRect(nil)
-				DrawSpace(&space, 0x66, 0x66, 0x66, 5)
-				DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
-				DrawListVectFromVert(&polRobotVect, vertexEnd.X, vertexEnd.Y, 0, 0, 0xff, 5)
+				DrawPolygon2(NR, polygon.PolygonOfList(listOfClicks), 0x66, 0x66, 0x66, 5)
+				NR.Present()
+				T, _ = PLRENDERER.CreateTextureFromSurface(S)
+				PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0xff)
+				PLRENDERER.Clear()
+				PLRENDERER.Copy(T, nil, nil)
+				DrawPolygon(polygon.PolygonOfList(listOfClicks), 0x66, 0x66, 0x66, 5)
+				PLRENDERER.Present()
 				*listOfClicks = []polygon.Vertex{}
 				*i = 0
 				allEdge = append(allEdge, e)
@@ -907,8 +935,23 @@ func SetObstacles() {
 	listOfClicks := []polygon.Vertex{}
 	i := 0
 	PrintInstruction(INSTRUCTION_OBSTACLES)
-	last := time.Now().UnixNano()
-	estimate := time.Now().UnixNano() - last
+	w, h, _ := PLRENDERER.GetOutputSize()
+	fmt.Printf("w : %v h : %v", w, h)
+	S, _ := sdl.CreateRGBSurface(0, w, h, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff)
+	NR, _ := sdl.CreateSoftwareRenderer(S)
+	NR.SetDrawColor(0xff, 0xff, 0xff, 0)
+	NR.FillRect(nil)
+	DrawSpace2(NR, &spaceInit, 0x66, 0x66, 0x66, 5)
+	DrawListVectFromVert2(NR, &polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
+	DrawListVectFromVert2(NR, &polRobotVect, vertexEnd.X, vertexEnd.Y, 0, 0, 0xff, 5)
+	NR.Present()
+	T, _ := PLRENDERER.CreateTextureFromSurface(S)
+	PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+	PLRENDERER.Clear()
+	PLRENDERER.Copy(T, nil, nil)
+	PLRENDERER.Present()
+	//last := time.Now().UnixNano()
+	//estimate := time.Now().UnixNano() - last
 	for running && quit {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch ev := event.(type) {
@@ -918,33 +961,35 @@ func SetObstacles() {
 				}
 				break
 			case *sdl.MouseButtonEvent:
-				handleClickObstacles(ev, &listOfClicks, &i)
+				handleClickObstacles(ev, &listOfClicks, &i, NR, T, S)
+				T, _ = PLRENDERER.CreateTextureFromSurface(S)
 				break
 			case *sdl.KeyboardEvent:
-				handleKeysObstacles(ev, &listOfClicks, &i, &running)
+				handleKeysObstacles(ev, &listOfClicks, &i, &running, NR, T, S)
+				T, _ = PLRENDERER.CreateTextureFromSurface(S)
 				break
 			case *sdl.MouseMotionEvent:
 				if ev.WindowID == MAIN_WINDOW_ID {
 					if i > 0 {
-						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0xff)
-						PLRENDERER.FillRect(nil)
+						PLRENDERER.SetDrawColor(0xff, 0xff, 0xff, 0)
+						PLRENDERER.Clear()
+						PLRENDERER.Copy(T, nil, nil)
 						_ = gfx.ThickLineRGBA(PLRENDERER, int32(listOfClicks[i-1].X),
 							int32(listOfClicks[i-1].Y), ev.X, ev.Y, 5, 0x66, 0x66, 0x66, 0xff)
+						PLRENDERER.Present()
 					}
 				}
 				break
 			}
 		}
-		if time.Now().UnixNano()-last > estimate {
-			tmp := time.Now().UnixNano()
-			DrawSpace(&space, 0x66, 0x66, 0x66, 5)
-			DrawListVert(&listOfClicks, 0x66, 0x66, 0x66, 5)
-			DrawListVectFromVert(&polRobotVect, vertexBegin.X, vertexBegin.Y, 0, 0xff, 0, 5)
-			DrawListVectFromVert(&polRobotVect, vertexEnd.X, vertexEnd.Y, 0, 0, 0xff, 5)
-			PLRENDERER.Present()
-			estimate = time.Now().UnixNano() - tmp + 5000000
-			last = time.Now().UnixNano()
-		}
+		/*
+			if time.Now().UnixNano()-last > estimate {
+				tmp := time.Now().UnixNano()
+
+				PLRENDERER.Present()
+				estimate = time.Now().UnixNano() - tmp + 5000000
+				last = time.Now().UnixNano()
+			}*/
 	}
 
 }
